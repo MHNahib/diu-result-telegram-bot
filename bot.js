@@ -1,6 +1,8 @@
 const TelegramBot = require("node-telegram-bot-api");
 require("dotenv").config();
 const axios = require("axios");
+const db = require("./setup/db");
+const { User } = require("./models/user");
 
 const token = process.env.TELEGRAM_TOKEN;
 
@@ -97,8 +99,30 @@ const checkMessage = (message) => {
   }
 };
 
-bot.on("message", (message) => {
+bot.on("message", async (message) => {
   chatId = message.from.id;
+
+  let chatUser;
+  // add user to db
+  try {
+    chatUser = await User.find({ telegramId: message.from.id });
+
+    if (chatUser.length === 0) {
+      chatUser = new User({
+        username: message.from.username,
+        telegramId: message.from.id,
+        firstName: message.from.first_name,
+        lastName: message.from.last_name,
+        searched: message.text,
+      });
+      await chatUser.save();
+    } else {
+      chatUser[0].searched.push(message.text);
+      await chatUser[0].save();
+    }
+  } catch (ex) {
+    console.log(ex);
+  }
 
   checkMessage(message.text);
 });
